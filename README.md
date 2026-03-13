@@ -15,7 +15,7 @@ uses `HashMap.union` (via `<>`), which is **left-biased**. `targetItems` contain
 **Fix** — swap operands so `newItems` takes precedence:
 
 ```haskell
-pure $ HashMap.insert parent item' $ HashMap.union newItems targetItems
+pure $ HashMap.insert parent item' newItems <> targetItems
 ```
 
 ## Setup
