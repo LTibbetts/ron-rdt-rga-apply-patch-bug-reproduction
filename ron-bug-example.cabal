@@ -10,8 +10,19 @@ test-suite ron-rga-bug
   main-is:        Main.hs
   hs-source-dirs: test
   ghc-options:    -Wall
+  other-modules:
+    ApplyPatchTests
+    ConsistencyTests
+    DeviceConnectionTests
+    EdgeCaseTests
+    Helpers
+    RemovalTests
+    SwarmResyncTests
   build-depends:
-    , base      >=4.16 && <5
-    , ron       >=0.12
-    , ron-rdt   >=0.12
+    , base        >=4.16 && <5
+    , ron         >=0.12
+    , ron-rdt     >=0.12
+    , tasty
+    , tasty-hunit
+    , text
   default-language: GHC2021
