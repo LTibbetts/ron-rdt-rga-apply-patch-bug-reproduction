@@ -1,0 +1,7 @@
+packages:
+  .
+  ron/ron
+  ron/ron-rdt
+
+-- Use local submodule checkout instead of Hackage
+-- This lets us modify ron-rdt source to verify fixes
