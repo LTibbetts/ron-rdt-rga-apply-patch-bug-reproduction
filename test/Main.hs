@@ -21,6 +21,7 @@ module Main (main) where
 import ApplyPatchTests (applyPatchTests)
 import ConsistencyTests (consistencyTests)
 import DeviceConnectionTests (deviceConnectionTests)
+import DiffStateFramesCycleTests (diffStateFramesCycleTests)
 import EdgeCaseTests (edgeCaseTests)
 import RemovalTests (removalTests)
 import SwarmResyncTests (swarmResyncTests)
@@ -37,4 +38,5 @@ main =
             , edgeCaseTests
             , deviceConnectionTests
             , swarmResyncTests
+            , diffStateFramesCycleTests
             ]

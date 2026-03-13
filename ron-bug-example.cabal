@@ -14,6 +14,7 @@ test-suite ron-rga-bug
     ApplyPatchTests
     ConsistencyTests
     DeviceConnectionTests
+    DiffStateFramesCycleTests
     EdgeCaseTests
     Helpers
     RemovalTests

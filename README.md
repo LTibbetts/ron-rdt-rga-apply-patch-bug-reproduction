@@ -15,7 +15,7 @@ uses `HashMap.union` (via `<>`), which is **left-biased**. `targetItems` contain
 **Fix** — swap operands so `newItems` takes precedence:
 
 ```haskell
-pure $ HashMap.insert parent item' newItems <> targetItems
+pure $ HashMap.insert parent item' $ HashMap.union newItems targetItems
 ```
 
 ## Setup
@@ -38,7 +38,7 @@ devenv shell
 
 ### Run Tests
 
-By default the bug is present — 12 of 29 tests fail:
+By default the bugs are present — 17 of 37 tests fail:
 
 ```bash
 cabal test
@@ -51,7 +51,7 @@ git -C ron apply ../fix-rga-applyPatch.patch
 cabal test
 ```
 
-All 29 tests pass. To revert back to the buggy state:
+33 of 37 tests pass. The remaining 4 failures are in the `diffStateFrames cycle bug` group — they exercise Bugs 1 and 3 which require separate fixes. To revert back to the buggy state:
 
 ```bash
 git -C ron checkout -- ron-rdt/lib/RON/Data/RGA.hs
@@ -59,15 +59,16 @@ git -C ron checkout -- ron-rdt/lib/RON/Data/RGA.hs
 
 ## Test Suite
 
-29 tests across 6 groups:
+37 tests across 7 groups:
 
-| Group                        | Tests | Description                                                            |
-| ---------------------------- | ----- | ---------------------------------------------------------------------- |
-| `applyPatch correctness`     | 7     | Core interleaving scenarios (5 `[BUG]`, 2 always-pass)                 |
-| `removal operations`         | 4     | Tombstone semantics                                                    |
-| `consistency`                | 4     | Roundtrip, Semigroup agreement, commutativity                          |
-| `edge cases`                 | 4     | Empty patch, single vertex, nonexistent parent, mixed ops              |
-| `device connection profiles` | 4     | Real-world scenario inspired by production product types               |
-| `swarm resync`               | 6     | Multi-entity bidirectional sync inspired by a RON swarm implementation |
+| Group | Tests | Description |
+|---|---|---|
+| `applyPatch correctness` | 8 | Core interleaving scenarios + cascading data loss (6 `[BUG]`, 2 always-pass) |
+| `removal operations` | 4 | Tombstone semantics |
+| `consistency` | 4 | Roundtrip, Semigroup agreement, commutativity |
+| `edge cases` | 4 | Empty patch, single vertex, nonexistent parent, mixed ops |
+| `device connection profiles` | 4 | Real-world scenario inspired by production product types |
+| `swarm resync` | 6 | Multi-entity bidirectional sync inspired by a RON swarm implementation |
+| `diffStateFrames cycle bug` | 7 | Cycle from duplicate opIds via full-body diffs (5 `[BUG]`, 2 always-pass) |
 
 Tests marked `[BUG]` fail when the bug is present and pass when fixed. All other tests pass regardless.
