@@ -1,0 +1,17 @@
+cabal-version: 2.4
+name:          ron-bug-example
+version:       0.1.0.0
+synopsis:      Demonstrates a bug in RON RGA's applyPatch function
+license:       BSD-3-Clause
+build-type:    Simple
+
+test-suite ron-rga-bug
+  type:           exitcode-stdio-1.0
+  main-is:        Main.hs
+  hs-source-dirs: test
+  ghc-options:    -Wall
+  build-depends:
+    , base      >=4.16 && <5
+    , ron       >=0.12
+    , ron-rdt   >=0.12
+  default-language: GHC2021
