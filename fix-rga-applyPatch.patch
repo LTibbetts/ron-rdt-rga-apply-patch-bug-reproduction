@@ -1,0 +1,13 @@
+diff --git a/ron-rdt/lib/RON/Data/RGA.hs b/ron-rdt/lib/RON/Data/RGA.hs
+index 89ac676..0e702b5 100644
+--- a/ron-rdt/lib/RON/Data/RGA.hs
++++ b/ron-rdt/lib/RON/Data/RGA.hs
+@@ -295,7 +295,7 @@ applyPatch parent patch targetItems = case parent of
+                 Nothing -> patch
+                 Just next -> VertexList next targetItems <> patch
+         let item' = item{itemNext = Just next'}
+-        pure $ HashMap.insert parent item' targetItems <> newItems
++        pure $ HashMap.insert parent item' $ HashMap.union newItems targetItems
+ 
+ reapplyRemovalsToState :: (RgaRep, PatchSet) -> Maybe (RgaRep, PatchSet)
+ reapplyRemovalsToState (RgaRep rstate, ps@PatchSet{..}) = do

@@ -1,5 +1,3 @@
-{-# LANGUAGE PatternSynonyms #-}
-
 -- | Consistency checks: roundtrips, Semigroup agreement, commutativity.
 module ConsistencyTests (consistencyTests) where
 
@@ -7,40 +5,86 @@ import Helpers
 import RON.Data (Reducible (..))
 import RON.Data.RGA (RgaRep)
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.HUnit (assertBool, assertEqual, testCase, (@?=))
+import Test.Tasty.HUnit (assertBool, assertEqual, testCase)
+
+-- | Two replicas for consistency tests.
+deviceA, deviceB :: ReplicaId
+deviceA = mkReplicaId 0xAAAA
+deviceB = mkReplicaId 0xBBBB
 
 consistencyTests :: TestTree
 consistencyTests =
     testGroup
         "consistency"
         [ testCase "applyPatches agrees with Semigroup merge order" $ do
-            -- Both paths should produce the same vertex ID ordering.
+            -- Both paths should produce the same vertex ordering.
             -- applyPatches uses the internal HashMap-based applyPatch;
             -- Semigroup merge uses flat-list merge (no HashMap bias).
-            let state = mkState [5, 3, 1]
-                -- applyPatches path
-                applyResult = applyRaw state (mkInsertAfter 5 [4, 2])
-                -- Semigroup merge path (using clean state ops)
-                mergeResult = state <> mkState [4, 2]
+            let state = mkState (eventsAt deviceA [500, 300, 100])
+                applyResult = applyRaw state (mkInsertAfter (eventAt deviceA 500) (eventsAt deviceB [400, 200]))
+                mergeResult = state <> mkState (eventsAt deviceB [400, 200])
+                applyTimes = getEventTimes applyResult
+                mergeTimes = getEventTimes mergeResult
             assertEqual
-                "same traversal order"
-                (getIds mergeResult)
-                (getIds applyResult)
+                ( unlines
+                    [ ""
+                    , "  Input:    state times = [500, 300, 100] (device A)"
+                    , "  Path A:   applyPatches with B's [t=400, t=200] after A's t=500"
+                    , "  Path B:   Semigroup merge (state <> mkState [t=400, t=200])"
+                    , "  Expected: both paths produce the same event time order"
+                    , "  Path A result: " ++ show applyTimes
+                    , "  Path B result: " ++ show mergeTimes
+                    ]
+                )
+                mergeTimes
+                applyTimes
         , testCase "stateFromChunk . stateToChunk roundtrip" $ do
-            let vids = [10, 8, 6, 4, 2]
-                state = mkState vids
+            let times = [1000, 800, 600, 400, 200]
+                state = mkState (eventsAt deviceA times)
                 roundtrip = stateFromChunk (stateToChunk state) :: RgaRep
-            getIds roundtrip @?= vids
+                roundtripTimes = getEventTimes roundtrip
+            assertEqual
+                ( unlines
+                    [ ""
+                    , "  Input:    times = " ++ show times
+                    , "  Applied:  stateFromChunk (stateToChunk state)"
+                    , "  Expected: " ++ show times
+                    , "  Received: " ++ show roundtripTimes
+                    ]
+                )
+                times
+                roundtripTimes
         , testCase "patch vertices are alive (refId = Zero)" $ do
             -- patchSetFromRawOp resets refId to Zero for inserted vertices.
-            let state = mkState [5, 3, 1]
-                result = applyRaw state (mkInsertAfter 5 [4, 2])
-                refs = getIdsWithRef result
+            let state = mkState (eventsAt deviceA [500, 300, 100])
+                result = applyRaw state (mkInsertAfter (eventAt deviceA 500) (eventsAt deviceB [400, 200]))
+                refs = getTimesWithRef result
+                allAlive = all (\(_, r) -> r == 0) refs
             assertBool
-                "all vertices alive (refId = 0)"
-                (all (\(_, r) -> r == 0) refs)
+                ( unlines
+                    [ ""
+                    , "  Input:    times = [500, 300, 100] (device A)"
+                    , "  Applied:  B inserts [t=400, t=200] after A's t=500"
+                    , "  Expected: all vertices have refTime = 0 (alive)"
+                    , "  Received: " ++ show refs
+                    ]
+                )
+                allAlive
         , testCase "Semigroup merge is commutative on vertex order" $ do
-            let a = mkState [5, 3, 1]
-                b = mkState [4, 2]
-            assertEqual "a <> b == b <> a" (getIds (a <> b)) (getIds (b <> a))
+            let a = mkState (eventsAt deviceA [500, 300, 100])
+                b = mkState (eventsAt deviceB [400, 200])
+                abTimes = getEventTimes (a <> b)
+                baTimes = getEventTimes (b <> a)
+            assertEqual
+                ( unlines
+                    [ ""
+                    , "  Input A:  times = [500, 300, 100] (device A)"
+                    , "  Input B:  times = [400, 200] (device B)"
+                    , "  Expected: A <> B == B <> A (commutative event time order)"
+                    , "  A <> B:   " ++ show abTimes
+                    , "  B <> A:   " ++ show baTimes
+                    ]
+                )
+                abTimes
+                baTimes
         ]

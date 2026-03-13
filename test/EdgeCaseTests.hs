@@ -1,36 +1,51 @@
-{-# LANGUAGE PatternSynonyms #-}
-
 -- | Edge-case tests for the RGA.
 module EdgeCaseTests (edgeCaseTests) where
 
 import Helpers
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.HUnit (assertEqual, testCase, (@?=))
+import Test.Tasty.HUnit (testCase)
+
+-- | Two replicas for edge-case tests.
+deviceA, deviceB :: ReplicaId
+deviceA = mkReplicaId 0xAAAA
+deviceB = mkReplicaId 0xBBBB
 
 edgeCaseTests :: TestTree
 edgeCaseTests =
     testGroup
         "edge cases"
         [ testCase "empty patch leaves state unchanged" $ do
-            let state = mkState [5, 3, 1]
+            let state = mkState (eventsAt deviceA [500, 300, 100])
                 result = applyRaw state []
-            getIds result @?= [5, 3, 1]
+            assertRgaOrder [500, 300, 100] "empty patch (no ops)" [500, 300, 100] result
         , testCase "single vertex state with append" $ do
-            let state = mkState [5]
-                result = applyRaw state (mkInsertAfter 5 [3, 1])
-            getIds result @?= [5, 3, 1]
+            let state = mkState (eventsAt deviceA [500])
+                result = applyRaw state (mkInsertAfter (eventAt deviceA 500) (eventsAt deviceB [300, 100]))
+            assertRgaOrder [500] "B inserts [t=300, t=100] after A's t=500" [500, 300, 100] result
         , testCase "patch with nonexistent parent is not applied" $ do
-            -- Parent 99 doesn't exist in state; patch goes into unapplied.
-            let state = mkState [5, 3, 1]
-                result = applyRaw state (mkInsertAfter 99 [4, 2])
-            getIds result @?= [5, 3, 1]
+            -- Parent t=9900 doesn't exist in state; patch goes into unapplied.
+            let state = mkState (eventsAt deviceA [500, 300, 100])
+                result = applyRaw state (mkInsertAfter (eventAt deviceB 9900) (eventsAt deviceB [400, 200]))
+            assertRgaOrder
+                [500, 300, 100]
+                "B inserts [t=400, t=200] after nonexistent t=9900 (should be ignored)"
+                [500, 300, 100]
+                result
         , testCase "mixed inserts and removals in same batch" $ do
-            -- Insert D(4) after A(5), and tombstone B(3) in the same batch.
-            let state = mkState [5, 3, 1]
-                ops = mkInsertAfter 5 [4] ++ [mkRemoval 20 3]
+            -- Insert t=400 after t=500, and tombstone t=300 in the same batch.
+            let state = mkState (eventsAt deviceA [500, 300, 100])
+                ops =
+                    mkInsertAfter (eventAt deviceA 500) (eventsAt deviceB [400])
+                        ++ [mkRemoval (eventAt deviceA 2000) (eventAt deviceA 300)]
                 result = applyRaw state ops
-            -- D(4) inserted; B(3) tombstoned but still in list
-            getIds result @?= [5, 4, 3, 1]
-            let refs = getIdsWithRef result
-            assertEqual "B tombstoned" (3, 20) (refs !! 2)
+            assertRgaOrder
+                [500, 300, 100]
+                "B inserts [t=400] after A's t=500; tombstone t=300 (event t=2000)"
+                [500, 400, 300, 100]
+                result
+            assertTombstones
+                [500, 300, 100]
+                "B inserts [t=400] after A's t=500; tombstone t=300 (event t=2000)"
+                [(500, 0), (400, 0), (300, 2000), (100, 0)]
+                result
         ]
